@@ -2,7 +2,7 @@
 * ng-grid JavaScript Library
 * Authors: https://github.com/angular-ui/ng-grid/blob/master/README.md 
 * License: MIT (http://www.opensource.org/licenses/mit-license.php)
-* Compiled At: 11/04/2014 09:19
+* Compiled At: 08/29/2015 16:40
 ***********************************************/
 (function(window, $) {
 'use strict';
@@ -861,11 +861,18 @@ var ngColumn = function (config, $scope, grid, domUtilityService, $templateCache
     self.noSortVisible = function() {
         return !self.sortDirection;
     };
+    var gotUserSortDirection = false;
     self.sort = function(evt) {
         if (!self.sortable) {
             return true; // column sorting is disabled, do nothing
         }
-        var dir = self.sortDirection === ASC ? DESC : ASC;
+        var dir;
+        if(self.colDef.sortDirection && !gotUserSortDirection){
+            dir = self.sortDirection === ASC ? ASC : DESC;
+            gotUserSortDirection = true;
+        } else {
+            dir = self.sortDirection === ASC ? DESC : ASC;    
+        }
         self.sortDirection = dir;
         config.sortCallback(self, evt);
         return false;
@@ -1068,9 +1075,12 @@ var ngEventProvider = function (grid, $scope, domUtilityService, $timeout) {
             $timeout(self.setDraggables);
         }));
     };
-    self.dragStart = function(evt){		
-      //FireFox requires there to be dataTransfer if you want to drag and drop.
-      evt.dataTransfer.setData('text', ''); //cannot be empty string
+    self.dragStart = function(evt){
+        if ($scope.isColumnResizing) {
+            return false;
+        }
+        //FireFox requires there to be dataTransfer if you want to drag and drop.
+        evt.dataTransfer.setData('text', ''); //cannot be empty string
     };
     self.dragOver = function(evt) {
         evt.preventDefault();
@@ -1100,7 +1110,9 @@ var ngEventProvider = function (grid, $scope, domUtilityService, $timeout) {
                     //call native IE dragDrop() to start dragging
                     var sortColumn = grid.$root.find('.ngHeaderSortColumn');
                     sortColumn.bind('selectstart', function () { 
-                        this.dragDrop(); 
+                        if (!$scope.isColumnResizing) {
+                            this.dragDrop(); 
+                        }
                         return false; 
                     });
                     angular.element(sortColumn).on('$destroy', function() {
@@ -1145,7 +1157,9 @@ var ngEventProvider = function (grid, $scope, domUtilityService, $timeout) {
                     if (navigator.userAgent.indexOf("MSIE") !== -1){
                         //call native IE dragDrop() to start dragging
                         groupItem.bind('selectstart', function () { 
-                            this.dragDrop(); 
+                            if (!$scope.isColumnResizing) {
+                                this.dragDrop(); 
+                            }
                             return false; 
                         });
 
@@ -2061,6 +2075,7 @@ var ngGrid = function ($scope, options, sortService, domUtilityService, $filter,
             angular.forEach(self.lastSortedColumns, function (c) {
                 c.sortDirection = "";
                 c.sortPriority = null;
+                c.gotUserSortDirection = false;
             });
             self.lastSortedColumns = [];
         } else {
@@ -2068,6 +2083,7 @@ var ngGrid = function ($scope, options, sortService, domUtilityService, $filter,
                 if (col.index !== c.index) {
                     c.sortDirection = "";
                     c.sortPriority = null;
+                    c.gotUserSortDirection = false;
                 }
             });
             self.lastSortedColumns[0] = col;
@@ -2537,6 +2553,7 @@ var ngRowFactory = function (grid, $scope, domUtilityService, $templateCache, $u
     };
     //Shuffle the data into their respective groupings.
     self.getGrouping = function(groups) {
+        var previousAggCache = self.aggCache;
         self.aggCache = [];
         self.numberOfAggregates = 0;
         self.groupedData = {};
@@ -2565,7 +2582,7 @@ var ngRowFactory = function (grid, $scope, domUtilityService, $templateCache, $u
                 var col = filterCols(cols, group)[0];
 
                 var val = $utils.evalProperty(model, group);
-                val = (val === '' || val === null) ? 'null' : val.toString();
+                val = (val === '' || val === null || val === undefined) ? 'null' : val.toString();
                 if (!ptr[val]) {
                     ptr[val] = {};
                 }
@@ -2614,6 +2631,46 @@ var ngRowFactory = function (grid, $scope, domUtilityService, $templateCache, $u
         self.parsedData.length = 0;
         self.parseGroupData(self.groupedData);
         self.fixRowCache();
+        self.fixAggregatorsCollapseState(previousAggCache);
+    };
+
+    self.fixAggregatorsCollapseState = function(previousAggCache){
+        if(!angular.isArray(previousAggCache) || previousAggCache.length === 0){
+            return;
+        }
+
+        angular.forEach(self.aggCache, function(agg){
+            var previousAgg = self.findAggregator(agg, previousAggCache);
+            if(previousAgg){
+               agg.setExpand(previousAgg.collapsed);
+            }
+        });
+    };
+
+    self.findAggregator = function(aggregatorToFind, aggs){
+        var foundAgg;
+        angular.forEach(aggs, function(agg){
+            if(!foundAgg && self.aggregatorEquals(aggregatorToFind, agg)){
+                foundAgg = agg;
+            }
+        });
+        return foundAgg;
+    };
+
+    self.aggregatorEquals = function(agg1, agg2){
+        if(agg1.depth !== agg2.depth ||
+            agg1.entity.gField !== agg2.entity.gField ||
+            agg1.entity.gLabel !== agg2.entity.gLabel){
+            return false;
+        }
+
+        if(!agg1.parent && !agg2.parent){
+            return true;
+        } if(!agg1.parent || !agg2.parent){
+            return false;
+        } else{
+            return self.aggregatorEquals(agg1.parent, agg2.parent);
+        }
     };
 
     if (grid.config.groups.length > 0 && grid.filteredRows.length > 0) {
@@ -2883,8 +2940,8 @@ var ngSelectionProvider = function (grid, $scope, $parse, $utils) {
                     rowsArr = grid.filteredRows;
                 }
 
-                var thisIndx = rowItem.rowIndex;
-                var prevIndx = self.lastClickedRowIndex;
+                var thisIndx = rowsArr.indexOf(rowItem.orig || rowItem);
+                var prevIndx = rowsArr.indexOf(self.lastClickedRow.orig || self.lastClickedRow);
                 
                 if (thisIndx === prevIndx) {
                     return false;
@@ -3329,6 +3386,10 @@ ngGridDirectives.directive('ngGrid', ['$compile', '$filter', '$templateCache', '
                                 $scope.columns = [];
                                 grid.config.columnDefs = a;
                                 grid.buildColumns();
+                                if (grid.config.sortInfo.fields.length > 0) {
+                                    grid.sortColumnsInit();
+                                    $scope.$emit('ngGridEventSorted', grid.config.sortInfo);
+                                }
                                 grid.eventProvider.assignEvents();
                                 domUtilityService.RebuildGrid($scope, grid);
                             }, true));
@@ -3490,12 +3551,16 @@ ngGridDirectives.directive('ngHeaderCell', ['$compile', function($compile) {
             return {
                 pre: function($scope, iElement) {
                     iElement.append($compile($scope.col.headerCellTemplate)($scope));
+                    // put $scope back on the element so element.scope() works even when
+                    // $compileProvider.debugInfoEnabled(false);
+                    iElement.data('$scope', $scope);
                 }
             };
         }
     };
     return ngHeaderCell;
 }]);
+
 ngGridDirectives.directive('ngHeaderRow', ['$compile', '$templateCache', function ($compile, $templateCache) {
     var ngHeaderRow = {
         scope: false,
@@ -3518,7 +3583,7 @@ ngGridDirectives.directive('ngInput', [function() {
             // Store the initial cell value so we can reset to it if need be
             var oldCellValue;
             var dereg = scope.$watch('ngModel', function() {
-                oldCellValue = ngModel.$modelValue;
+                oldCellValue = ngModel.$viewValue;
                 dereg(); // only run this watch once, we don't want to overwrite our stored value when the input changes
             });
 
@@ -3827,7 +3892,7 @@ angular.module('ngGrid').run(['$templateCache', function($templateCache) {
   $templateCache.put('aggregateTemplate.html',
     "<div ng-click=\"row.toggleExpand()\" ng-style=\"rowStyle(row)\" class=\"ngAggregate\">\r" +
     "\n" +
-    "    <span class=\"ngAggregateText\">{{row.label CUSTOM_FILTERS}} ({{row.totalChildren()}} {{AggItemsLabel}})</span>\r" +
+    "    <span class=\"ngAggregateText\">{{row.label CUSTOM_FILTERS}} ({{row.totalChildren()}}{{AggItemsLabel}})</span>\r" +
     "\n" +
     "    <div class=\"{{row.aggClass()}}\"></div>\r" +
     "\n" +

@@ -8,7 +8,7 @@
     "grid"
   ],
   "license": "MIT",
-  "main": ["./cos-ui-grid.css", "./build/cos-ui-grid.js"],
+  "main": ["./ng-grid.css", "./build/cos-ui-grid.js"],
   "ignore": [
     "**/.*",
     "node_modules",
