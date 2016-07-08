@@ -102,15 +102,16 @@ var ngSelectionProvider = function (grid, $scope, $parse, $utils) {
         var index = -1;
         if (grid.config.primaryKey) {
             var val = self.pKeyParser({entity: entity});
-            angular.forEach(self.selectedItems, function (c, k) {
-                if (val === self.pKeyParser({entity: c})) {
-                    index = k;
-                }
-            });
+            if(val){
+                angular.forEach(self.selectedItems, function (c, k) {
+                    if (val === self.pKeyParser({entity: c})) {
+                        index = k;
+                    }
+                });
+                return index;
+            }
         }
-        else {
-            index = self.selectedItems.indexOf(entity);
-        }
+        index = self.selectedItems.indexOf(entity);
         return index;
     };
 
