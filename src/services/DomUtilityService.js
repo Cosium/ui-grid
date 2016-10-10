@@ -129,6 +129,9 @@
                 var rightPad = 0;
                 if ((i === cols.length - 1) && (sumWidth + col.width < grid.elementDims.rootMaxW)) {
                     rightPad = grid.elementDims.rootMaxW - sumWidth - col.width;
+                    if(grid.maxCanvasHt > $scope.viewportDimHeight()){
+                        rightPad -= domUtilityService.ScrollW;
+                    }
                 }
                 css += "." + gridId + " .col" + i + " { width: " + (col.width + rightPad) + "px; left: " + sumWidth + "px; height: " + rowHeight + "px }" +
                     "." + gridId + " .colt" + i + " { width: " + (col.width + rightPad) + "px; }";
