@@ -2,7 +2,7 @@
 * ng-grid JavaScript Library
 * Authors: https://github.com/angular-ui/ng-grid/blob/master/README.md 
 * License: MIT (http://www.opensource.org/licenses/mit-license.php)
-* Compiled At: 07/08/2016 16:36
+* Compiled At: 10/10/2016 22:45
 ***********************************************/
 (function(window, $) {
 'use strict';
@@ -335,6 +335,9 @@ angular.module('ngGrid.services').factory('$domUtilityService',['$utilityService
                 var rightPad = 0;
                 if ((i === cols.length - 1) && (sumWidth + col.width < grid.elementDims.rootMaxW)) {
                     rightPad = grid.elementDims.rootMaxW - sumWidth - col.width;
+                    if(grid.maxCanvasHt > $scope.viewportDimHeight()){
+                        rightPad -= domUtilityService.ScrollW;
+                    }
                 }
                 css += "." + gridId + " .col" + i + " { width: " + (col.width + rightPad) + "px; left: " + sumWidth + "px; height: " + rowHeight + "px }" +
                     "." + gridId + " .colt" + i + " { width: " + (col.width + rightPad) + "px; }";
