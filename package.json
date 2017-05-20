@@ -1,7 +1,10 @@
 {
-  "name": "cos-ui-grid",
+  "name": "@cosium/ui-grid",
   "version": "2.0.17",
   "main": "cos-ui-grid.js",
+  "publishConfig": {
+    "registry": "http://srv-203.cosium.com:4873"
+  },
   "directories": {
     "test": "test"
   },
