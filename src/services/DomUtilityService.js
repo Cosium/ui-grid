@@ -65,10 +65,18 @@
     domUtilityService.getRealWidth = function (obj) {
         var width = 0;
         var props = { visibility: "hidden", display: "block" };
-        var hiddenParents = obj.parents().andSelf().not(':visible');
-        $.swap(hiddenParents[0], props, function () {
-            width = obj.outerWidth();
-        });
+        var hiddenParentStyle = obj.parents().andSelf().not(':visible')[0].style;
+        var previousProps = {};
+        var name;
+        // jQuery.swap is no longer public since jQuery 2.2
+        for (name in props) {
+            previousProps[name] = hiddenParentStyle[name];
+            hiddenParentStyle[name] = props[name];
+        }
+        width = obj.outerWidth();
+        for (name in props) {
+            hiddenParentStyle[name] = previousProps[name];
+        }
         return width;
     };
     domUtilityService.UpdateGridLayout = function($scope, grid) {

@@ -2,7 +2,7 @@
 * ng-grid JavaScript Library
 * Authors: https://github.com/angular-ui/ng-grid/blob/master/README.md 
 * License: MIT (http://www.opensource.org/licenses/mit-license.php)
-* Compiled At: 10/10/2016 22:45
+* Compiled At: 11/27/2026 16:42
 ***********************************************/
 (function(window, $) {
 'use strict';
@@ -284,10 +284,18 @@ angular.module('ngGrid.services').factory('$domUtilityService',['$utilityService
     domUtilityService.getRealWidth = function (obj) {
         var width = 0;
         var props = { visibility: "hidden", display: "block" };
-        var hiddenParents = obj.parents().andSelf().not(':visible');
-        $.swap(hiddenParents[0], props, function () {
-            width = obj.outerWidth();
-        });
+        var hiddenParentStyle = obj.parents().andSelf().not(':visible')[0].style;
+        var previousProps = {};
+        var name;
+        // jQuery.swap is no longer public since jQuery 2.2
+        for (name in props) {
+            previousProps[name] = hiddenParentStyle[name];
+            hiddenParentStyle[name] = props[name];
+        }
+        width = obj.outerWidth();
+        for (name in props) {
+            hiddenParentStyle[name] = previousProps[name];
+        }
         return width;
     };
     domUtilityService.UpdateGridLayout = function($scope, grid) {
