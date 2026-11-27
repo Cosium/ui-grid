@@ -3,7 +3,7 @@
   "version": "2.0.18",
   "main": "cos-ui-grid.js",
   "publishConfig": {
-    "registry": "http://srv-203.cosium.com:4873"
+    "registry": "https://nexus.neox.sh/repository/npm-releases/"
   },
   "directories": {
     "test": "test"
